@@ -3,11 +3,11 @@ kind: Service
 metadata:
   labels:
     component: db
-  name: model-registry-db
+  name: metadata-postgres-db
 spec:
   ports:
-  - name: dbapi
-    port: 3306
+  - name: postgres
+    port: 5432
     protocol: TCP
   selector:
     component: db

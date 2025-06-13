@@ -1,8 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: model-registry-db-parameters
+  name: metadata-registry-db-parameters
 data:
-  MYSQL_ALLOW_EMPTY_PASSWORD: "true"
-  MYSQL_DATABASE: metadb
-  MYSQL_PORT: "3306"
+  POSTGRES_DBNAME: mlmdpostgres
+  POSTGRES_PORT: "5432"

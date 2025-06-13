@@ -12,62 +12,29 @@ spec:
   template:
     metadata:
       annotations:
-        traffic.sidecar.istio.io/excludeOutboundPorts: "3306"
+        traffic.sidecar.istio.io/excludeOutboundPorts: "5432"
       labels:
         component: model-registry-server
         sidecar.istio.io/inject: "true"
     spec:
       containers:
       - args:
-        - --hostname=0.0.0.0
-        - --port=$(MODEL_REGISTRY_REST_SERVICE_PORT)
-        - --mlmd-hostname=localhost
-        - --mlmd-port=$(MODEL_REGISTRY_GRPC_SERVICE_PORT)
-        - --datastore-type=$(MODEL_REGISTRY_DATA_STORE_TYPE)
-        command:
-        - /model-registry
-        - proxy
-        env: []
-        envFrom:
-        - configMapRef:
-            name: model-registry-configmap
-        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-        livenessProbe:
-          initialDelaySeconds: 30
-          periodSeconds: 5
-          tcpSocket:
-            port: http-api
-          timeoutSeconds: 2
-        name: rest-container
-        ports:
-        - containerPort: 8080
-          name: http-api
-        readinessProbe:
-          initialDelaySeconds: 3
-          periodSeconds: 5
-          tcpSocket:
-            port: http-api
-          timeoutSeconds: 2
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-      - args:
         - --grpc_port=$(MODEL_REGISTRY_GRPC_SERVICE_PORT)
-        - --mysql_config_host=model-registry-db
-        - --mysql_config_database=$(MYSQL_DATABASE)
-        - --mysql_config_port=3306
-        - --mysql_config_user=$(MYSQL_USER_NAME)
-        - --mysql_config_password=$(MYSQL_ROOT_PASSWORD)
+        - --metadata_source_config_type=postgresql
+        - --postgres_config_host=metadata-postgres-db
+        - --postgres_config_port=5432
+        - --postgres_config_dbname=$(POSTGRES_DBNAME)
+        - --postgres_config_user=$(POSTGRES_USER)
+        - --postgres_config_password=$(POSTGRES_PASSWORD)
+        - --enable_database_upgrade=true
         command:
         - /bin/metadata_store_server
         env: []
         envFrom:
         - configMapRef:
-            name: model-registry-db-parameters
+            name: metadata-registry-db-parameters
         - secretRef:
-            name: model-registry-db-secrets
+            name: metadata-registry-db-secrets
         - configMapRef:
             name: model-registry-configmap
         image: gcr.io/tfx-oss-public/ml_metadata_store_server:1.14.0
@@ -94,6 +61,38 @@ spec:
             - ALL
           runAsGroup: 65534
           runAsUser: 65534
+      - args:
+        - --hostname=0.0.0.0
+        - --port=8080
+        - --mlmd-hostname=localhost
+        - --mlmd-port=9090
+        - --datastore-type=mlmd
+        command:
+        - /model-registry
+        - proxy
+        env: []
+        image: ghcr.io/kubeflow/model-registry/server:latest
+        livenessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          tcpSocket:
+            port: http-api
+          timeoutSeconds: 2
+        name: rest-container
+        ports:
+        - containerPort: 8080
+          name: http-api
+        readinessProbe:
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          tcpSocket:
+            port: http-api
+          timeoutSeconds: 2
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
       securityContext:
         runAsNonRoot: true
         seccompProfile:

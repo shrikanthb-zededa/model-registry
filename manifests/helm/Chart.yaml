@@ -1,0 +1,4 @@
+apiVersion: v2
+name: model-registry
+version: 0.1.0
+description: Kubeflow Model Registry with PostgreSQL Helm Chart

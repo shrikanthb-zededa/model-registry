@@ -1,0 +1,17 @@
+replicaCount: 1
+image:
+  repository: ghcr.io/kubeflow/model-registry/server
+  tag: latest
+service:
+  httpPort: 8080
+  grpcPort: 9090
+db:
+  image: postgres:13
+  port: 5432
+  pvcName: model-registry-db-pvc
+  secretName: model-registry-db-secrets
+  configMapName: model-registry-db-parameters
+  database: modeldb
+  username: modeldbuser
+  password: modeldbpassword
+  host: model-registry-postgres-db

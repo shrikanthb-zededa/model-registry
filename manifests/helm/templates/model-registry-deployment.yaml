@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: model-registry-server
+  name: model-registry-deployment
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      component: model-registry-server
+  template:
+    metadata:
+      annotations:
+        traffic.sidecar.istio.io/excludeOutboundPorts: "3306"
+      labels:
+        component: model-registry-server
+        sidecar.istio.io/inject: "true"
+    spec:
+      containers:
+      - args:
+        - --hostname=0.0.0.0
+        - --port=$(MODEL_REGISTRY_REST_SERVICE_PORT)
+        - --mlmd-hostname=localhost
+        - --mlmd-port=$(MODEL_REGISTRY_GRPC_SERVICE_PORT)
+        - --datastore-type=$(MODEL_REGISTRY_DATA_STORE_TYPE)
+        command:
+        - /model-registry
+        - proxy
+        env: []
+        envFrom:
+        - configMapRef:
+            name: model-registry-configmap
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        livenessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          tcpSocket:
+            port: http-api
+          timeoutSeconds: 2
+        name: rest-container
+        ports:
+        - containerPort: 8080
+          name: http-api
+        readinessProbe:
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          tcpSocket:
+            port: http-api
+          timeoutSeconds: 2
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      - args:
+        - --grpc_port=$(MODEL_REGISTRY_GRPC_SERVICE_PORT)
+        - --mysql_config_host=model-registry-db
+        - --mysql_config_database=$(MYSQL_DATABASE)
+        - --mysql_config_port=3306
+        - --mysql_config_user=$(MYSQL_USER_NAME)
+        - --mysql_config_password=$(MYSQL_ROOT_PASSWORD)
+        command:
+        - /bin/metadata_store_server
+        env: []
+        envFrom:
+        - configMapRef:
+            name: model-registry-db-parameters
+        - secretRef:
+            name: model-registry-db-secrets
+        - configMapRef:
+            name: model-registry-configmap
+        image: gcr.io/tfx-oss-public/ml_metadata_store_server:1.14.0
+        livenessProbe:
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          tcpSocket:
+            port: grpc-api
+          timeoutSeconds: 2
+        name: grpc-container
+        ports:
+        - containerPort: 9090
+          name: grpc-api
+        readinessProbe:
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          tcpSocket:
+            port: grpc-api
+          timeoutSeconds: 2
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsGroup: 65534
+          runAsUser: 65534
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: model-registry-server
